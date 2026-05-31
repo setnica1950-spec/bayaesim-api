@@ -1,28 +1,25 @@
-const https = require('https');
 const http = require('http');
+const https = require('https');
+const PORT = process.env.PORT || 3000;
 
-function httpRequest(options, postData) {
-  return new Promise((resolve, reject) => {
-    const req = https.request(options, (res) => {
-      let data = '';
-      res.on('data', chunk => data += chunk);
-      res.on('end', () => {
-        try { resolve({ status: res.statusCode, body: JSON.parse(data) }); }
-        catch(e) { resolve({ status: res.statusCode, body: data }); }
+function call(o, d) {
+  return new Promise((res, rej) => {
+    const r = https.request(o, s => {
+      let b = '';
+      s.on('data', c => b += c);
+      s.on('end', () => {
+        try { res({ status: s.statusCode, body: JSON.parse(b) }); }
+        catch (e) { res({ status: s.statusCode, body: b }); }
       });
     });
-    req.on('error', reject);
-    if (postData) req.write(postData);
-    req.end();
+    r.on('error', rej);
+    if (d) r.write(d);
+    r.end();
   });
 }
 
-const PORT = process.env.PORT || 3000;
-
-const server = http.createServer(async (req, res) => {
+http.createServer(async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   res.setHeader('Content-Type', 'application/json');
 
   if (req.method === 'OPTIONS') {
@@ -38,28 +35,38 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (req.url === '/api/debug-omax') {
-    const clientId = process.env.OMAX_CLIENT_ID;
-    const clientSecret = process.env.OMAX_CLIENT_SECRET;
-
-    if (!clientId || !clientSecret) {
+    const id = process.env.OMAX_CLIENT_ID;
+    const secret = process.env.OMAX_CLIENT_SECRET;
+    if (!id || !secret) {
       res.writeHead(400);
       res.end(JSON.stringify({ error: 'Missing env vars' }));
       return;
     }
-
     const body = new URLSearchParams({
       grant_type: 'client_credentials',
-      client_id: clientId,
-      client_secret: clientSecret,
+      client_id: id,
+      client_secret: secret,
     }).toString();
+    try {
+      const r = await call({
+        hostname: 'id.omaxtelecom.com',
+        path: '/realms/platform/protocol/openid-connect/token',
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Content-Length': Buffer.byteLength(body),
+        },
+      }, body);
+      res.writeHead(200);
+      res.end(JSON.stringify({ status: r.status, body: r.body }, null, 2));
+    } catch (e) {
+      res.writeHead(500);
+      res.end(JSON.stringify({ error: e.message }));
+    }
+    return;
+  }
 
-    const endpoints = [
-      { hostname: 'id.omaxtelecom.com', path: '/realms/platform/protocol/openid-connect/token' },
-    ];
+  res.writeHead(404);
+  res.end(JSON.stringify({ error: 'Not found' }));
 
-    const results = [];
-    for (const ep of endpoints) {
-      try {
-        const r = await httpRequest({
-          hostname: ep.hostname, path: ep.path, method: 'POST',
-          headers: { 'Conten
+}).listen(PORT, () => console.log('running on ' + PORT));
