@@ -54,8 +54,7 @@ const server = http.createServer(async (req, res) => {
     }).toString();
 
     const endpoints = [
-      { hostname: 'id.omaxtelecom.com', path: '/realms/omax/protocol/openid-connect/token' },
-      { hostname: 'id.omaxtelecom.com', path: '/realms/master/protocol/openid-connect/token' },
+      { hostname: 'id.omaxtelecom.com', path: '/realms/platform/protocol/openid-connect/token' },
     ];
 
     const results = [];
@@ -63,23 +62,4 @@ const server = http.createServer(async (req, res) => {
       try {
         const r = await httpRequest({
           hostname: ep.hostname, path: ep.path, method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Content-Length': Buffer.byteLength(body) },
-        }, body);
-        results.push({ endpoint: ep.path, status: r.status, body: r.body });
-      } catch(e) {
-        results.push({ endpoint: ep.path, error: e.message });
-      }
-    }
-
-    res.writeHead(200);
-    res.end(JSON.stringify({ debug: true, results }, null, 2));
-    return;
-  }
-
-  res.writeHead(404);
-  res.end(JSON.stringify({ error: 'Not found' }));
-});
-
-server.listen(PORT, () => {
-  console.log(`bayaesim-api running on port ${PORT}`);
-});
+          headers: { 'Conten
