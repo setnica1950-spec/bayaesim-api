@@ -1,10 +1,11 @@
 {
   "name": "bayaesim-api",
   "version": "1.0.0",
-  "description": "BAYA eSIM API server",
+  "description": "BAYA eSIM API health and OMAX diagnostics server",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js"
+    "start": "node index.js",
+    "test": "node --test"
   },
   "engines": {
     "node": ">=18.0.0"
