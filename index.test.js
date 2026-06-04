@@ -64,6 +64,21 @@ function request(baseUrl, path, options = {}) {
   });
 }
 
+async function withMutedConsoleError(callback) {
+  const originalConsoleError = console.error;
+  const calls = [];
+
+  console.error = (...args) => {
+    calls.push(args);
+  };
+
+  try {
+    await callback(calls);
+  } finally {
+    console.error = originalConsoleError;
+  }
+}
+
 test('GET /health returns ok even with a query string', async () => {
   await withServer({}, async baseUrl => {
     const response = await request(baseUrl, '/health?check=1');
@@ -180,16 +195,21 @@ test('debug OMAX route hides upstream error details', async () => {
     OMAX_CLIENT_SECRET: 'client-secret',
   };
 
-  await withServer({
-    env,
-    request: async () => {
-      throw new Error('secret network detail');
-    },
-  }, async baseUrl => {
-    const response = await request(baseUrl, '/api/debug-omax');
+  await withMutedConsoleError(async calls => {
+    await withServer({
+      env,
+      request: async () => {
+        throw new Error('secret network detail');
+      },
+    }, async baseUrl => {
+      const response = await request(baseUrl, '/api/debug-omax');
 
-    assert.equal(response.status, 502);
-    assert.deepEqual(response.body, { error: 'Upstream service unavailable' });
+      assert.equal(response.status, 502);
+      assert.deepEqual(response.body, { error: 'Upstream service unavailable' });
+    });
+
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0][0], 'OMAX debug request failed');
   });
 });
 
